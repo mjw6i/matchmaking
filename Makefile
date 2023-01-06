@@ -1,5 +1,5 @@
 redis-up:
-	docker run --rm --name redis-mm -d redis:7-alpine
+	docker run --rm --name redis-mm -d -p 6379:6379 redis:7-alpine
 
 redis-down:
 	docker stop redis-mm
