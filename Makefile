@@ -6,3 +6,6 @@ redis-down:
 
 redis-cli:
 	docker exec -it redis-mm redis-cli
+
+test:
+	go test ./... -count=1
