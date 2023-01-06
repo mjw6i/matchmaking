@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"testing"
 
 	"github.com/go-redis/redis/v9"
@@ -9,7 +10,7 @@ import (
 
 func TestAdd(t *testing.T) {
 	store := getStore()
-	err := store.Add("123")
+	err := store.Add(context.Background(), "123")
 	assert.Nil(t, err)
 }
 
