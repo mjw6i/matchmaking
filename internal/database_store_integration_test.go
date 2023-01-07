@@ -10,6 +10,7 @@ import (
 
 func TestAdd(t *testing.T) {
 	r := getRedis()
+	flushRedis(t, r)
 	store := getStore(r)
 	err := store.Add(context.Background(), "123")
 	require.Nil(t, err)
@@ -24,6 +25,11 @@ func requireSet(t *testing.T, r *redis.Client, name string, expected []string) {
 
 func getStore(r *redis.Client) *DatabaseStore {
 	return &DatabaseStore{r: r}
+}
+
+func flushRedis(t *testing.T, r *redis.Client) {
+	err := r.FlushAll(context.Background()).Err()
+	require.Nil(t, err)
 }
 
 func getRedis() *redis.Client {
