@@ -20,3 +20,7 @@ func (s *DatabaseStore) Add(ctx context.Context, id string) error {
 
 	return nil
 }
+
+func (s *DatabaseStore) Group(ctx context.Context) error {
+	return nil
+}
