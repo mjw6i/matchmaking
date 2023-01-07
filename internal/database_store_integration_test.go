@@ -13,23 +13,19 @@ func TestAdd(t *testing.T) {
 	r := getRedis()
 	flushRedis(t, r)
 	store := getStore(r)
+	// @todo check if UnixNano mapped to a float generates a sensible score
 	nano := time.Now().UnixNano()
 	err := store.Add(context.Background(), "123", float64(nano))
 	require.Nil(t, err)
 	requireSet(t, r, "lobby", []string{"123"})
 }
 
-func TestGroup(t *testing.T) {
+func TestGroupCreatesOnlyFullRooms(t *testing.T) {
 	r := getRedis()
 	flushRedis(t, r)
 	store := getStore(r)
-	// check if UnixNano mapped to a float generates a sensible score
 	nano := time.Now().UnixNano()
-	users := []string{
-		"1a", "1b", "1c", "1d", "1e", "1f", "1g", "1h", "1i", "1j",
-		"2a", "2b", "2c", "2d", "2e", "2f", "2g", "2h", "2i", "2j",
-		"3a", "3b", "3c",
-	}
+	users := []string{"1a", "1b", "1c"}
 	for _, u := range users {
 		err := store.Add(context.Background(), u, float64(nano))
 		require.Nil(t, err)
@@ -38,7 +34,7 @@ func TestGroup(t *testing.T) {
 	err := store.Group(context.Background())
 	require.Nil(t, err)
 
-	requireSet(t, r, "lobby", []string{"3a", "3b", "3c"})
+	requireSet(t, r, "lobby", []string{"1a", "1b", "1c"})
 }
 
 func requireSet(t *testing.T, r *redis.Client, name string, expected []string) {
