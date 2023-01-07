@@ -5,21 +5,31 @@ import (
 	"testing"
 
 	"github.com/go-redis/redis/v9"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAdd(t *testing.T) {
-	store := getStore()
+	r := getRedis()
+	store := getStore(r)
 	err := store.Add(context.Background(), "123")
-	assert.Nil(t, err)
+	require.Nil(t, err)
+	requireSet(t, r, "lobby", []string{"123"})
 }
 
-func getStore() *DatabaseStore {
-	r := redis.NewClient(&redis.Options{
+func requireSet(t *testing.T, r *redis.Client, name string, expected []string) {
+	actual, err := r.SMembers(context.Background(), name).Result()
+	require.Nil(t, err)
+	require.Equal(t, expected, actual)
+}
+
+func getStore(r *redis.Client) *DatabaseStore {
+	return &DatabaseStore{r: r}
+}
+
+func getRedis() *redis.Client {
+	return redis.NewClient(&redis.Options{
 		Addr:     "127.0.0.1:6379",
 		Password: "",
 		DB:       0,
 	})
-	store := &DatabaseStore{r: r}
-	return store
 }
