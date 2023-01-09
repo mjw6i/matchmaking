@@ -2,11 +2,15 @@ package internal
 
 import (
 	"context"
+	_ "embed"
 	"errors"
 	"log"
 
 	"github.com/go-redis/redis/v9"
 )
+
+//go:embed group.lua
+var group string
 
 type DatabaseStore struct {
 	r   *redis.Client
@@ -25,6 +29,7 @@ func (s *DatabaseStore) Add(ctx context.Context, id string, score float64) error
 	return nil
 }
 
+// @todo if my app crashes after getting the ids, users will be removed from the lobby but not put inside a room
 func (s *DatabaseStore) Group(ctx context.Context) ([]string, error) {
 	res, err := s.r.EvalSha(ctx, s.sha.group, []string{"lobby"}).StringSlice()
 	if err != nil {
@@ -48,17 +53,7 @@ func (s *DatabaseStore) Group(ctx context.Context) ([]string, error) {
 }
 
 func (s *DatabaseStore) RegisterGroupFunction(ctx context.Context) error {
-	// @todo if my app crashes after getting the ids, users will be removed from the lobby but not put inside a room
-	f := `
-		local count = redis.call('ZCARD', KEYS[1])
-		if count < 10 then
-			return {}
-		end
-
-		return redis.call('ZPOPMIN', KEYS[1], 10)
-	`
-
-	sha, err := s.r.ScriptLoad(ctx, f).Result()
+	sha, err := s.r.ScriptLoad(ctx, group).Result()
 	if err != nil {
 		log.Println(err)
 		return err
