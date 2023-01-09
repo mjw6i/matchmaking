@@ -3,7 +3,6 @@ package internal
 import (
 	"context"
 	_ "embed"
-	"errors"
 	"log"
 
 	"github.com/go-redis/redis/v9"
@@ -29,27 +28,17 @@ func (s *DatabaseStore) Add(ctx context.Context, id string, score float64) error
 	return nil
 }
 
-// @todo if my app crashes after getting the ids, users will be removed from the lobby but not put inside a room
-func (s *DatabaseStore) Group(ctx context.Context) ([]string, error) {
-	res, err := s.r.EvalSha(ctx, s.sha.group, []string{"lobby"}).StringSlice()
+// @todo output doesnt determine if theres too few users or room id is already used
+// @todo should the lua function have transaction inside?
+// move 10 users to a new room with given id
+func (s *DatabaseStore) Group(ctx context.Context, id string) (bool, error) {
+	created, err := s.r.EvalSha(ctx, s.sha.group, []string{"lobby", "rooms", id}).Bool()
 	if err != nil {
 		log.Println(err)
-		return nil, err
+		return false, err
 	}
 
-	if len(res)%2 != 0 {
-		return nil, errors.New("invalid length")
-	}
-
-	ids := make([]string, 0, len(res)/2)
-
-	for i, e := range res {
-		if i%2 == 0 {
-			ids = append(ids, e)
-		}
-	}
-
-	return ids, nil
+	return created, nil
 }
 
 func (s *DatabaseStore) RegisterGroupFunction(ctx context.Context) error {

@@ -33,12 +33,46 @@ func TestGroupCreatesOnlyFullRooms(t *testing.T) {
 		require.Nil(t, err)
 	}
 
-	ids, err := store.Group(context.Background())
+	res, err := store.Group(context.Background(), "test")
 	require.Nil(t, err)
-	require.Empty(t, make([]string, 0))
-	require.Empty(t, ids)
+	require.False(t, res)
 
 	requireSet(t, r, "lobby", []string{"1a", "1b", "1c"})
+}
+
+func TestGroupCreatesOnlyFreshRooms(t *testing.T) {
+	r := getRedis()
+	flushRedis(t, r)
+	store := getStore(r)
+	err := store.RegisterGroupFunction(context.Background())
+	require.Nil(t, err)
+	micro := time.Now().UnixMicro()
+	users1 := []string{
+		"1a", "1b", "1c", "1d", "1e", "1f", "1g", "1h", "1i", "1j",
+	}
+	users2 := []string{
+		"2a", "2b", "2c", "2d", "2e", "2f", "2g", "2h", "2i", "2j",
+	}
+	for _, u := range users1 {
+		err := store.Add(context.Background(), u, float64(micro))
+		require.Nil(t, err)
+		micro++
+	}
+	for _, u := range users2 {
+		err := store.Add(context.Background(), u, float64(micro))
+		require.Nil(t, err)
+		micro++
+	}
+
+	res, err := store.Group(context.Background(), "test")
+	require.Nil(t, err)
+	require.True(t, res)
+
+	res, err = store.Group(context.Background(), "test")
+	require.Nil(t, err)
+	require.False(t, res)
+
+	requireSet(t, r, "lobby", users2)
 }
 
 func TestGroupOrderIsDeterminedByJoinTime(t *testing.T) {
@@ -57,10 +91,10 @@ func TestGroupOrderIsDeterminedByJoinTime(t *testing.T) {
 	for _, u := range users {
 		err := store.Add(context.Background(), u, float64(micro))
 		require.Nil(t, err)
-		micro += 1
+		micro++
 	}
 
-	_, err = store.Group(context.Background())
+	_, err = store.Group(context.Background(), "test")
 	require.Nil(t, err)
 
 	requireSet(t, r, "lobby", []string{"2a", "2b", "2c"})
