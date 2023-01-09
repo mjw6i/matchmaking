@@ -13,9 +13,9 @@ func TestAdd(t *testing.T) {
 	r := getRedis()
 	flushRedis(t, r)
 	store := getStore(r)
-	// @todo check if UnixNano mapped to a float generates a sensible score
-	nano := time.Now().UnixNano()
-	err := store.Add(context.Background(), "123", float64(nano))
+	// @todo check if UnixMicro mapped to a float generates a sensible score
+	micro := time.Now().UnixMicro()
+	err := store.Add(context.Background(), "123", float64(micro))
 	require.Nil(t, err)
 	requireSet(t, r, "lobby", []string{"123"})
 }
@@ -26,10 +26,10 @@ func TestGroupCreatesOnlyFullRooms(t *testing.T) {
 	store := getStore(r)
 	err := store.RegisterGroupFunction(context.Background())
 	require.Nil(t, err)
-	nano := time.Now().UnixNano()
+	micro := time.Now().UnixMicro()
 	users := []string{"1a", "1b", "1c"}
 	for _, u := range users {
-		err := store.Add(context.Background(), u, float64(nano))
+		err := store.Add(context.Background(), u, float64(micro))
 		require.Nil(t, err)
 	}
 
