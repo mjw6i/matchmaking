@@ -2,13 +2,17 @@ package internal
 
 import (
 	"context"
+	"errors"
 	"log"
 
 	"github.com/go-redis/redis/v9"
 )
 
 type DatabaseStore struct {
-	r *redis.Client
+	r   *redis.Client
+	sha struct { //@todo Most likely will be moved to a redis-managed function
+		group string // @todo should that be initialised by New()?
+	}
 }
 
 func (s *DatabaseStore) Add(ctx context.Context, id string, score float64) error {
@@ -21,37 +25,46 @@ func (s *DatabaseStore) Add(ctx context.Context, id string, score float64) error
 	return nil
 }
 
-func (s *DatabaseStore) Group(ctx context.Context) error {
-	// @todo for now only removes users
-	err := s.r.Watch(ctx, transaction(ctx), "lobby")
+func (s *DatabaseStore) Group(ctx context.Context) ([]string, error) {
+	res, err := s.r.EvalSha(ctx, s.sha.group, []string{"lobby"}).StringSlice()
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
 
+	if len(res)%2 != 0 {
+		return nil, errors.New("invalid length")
+	}
+
+	ids := make([]string, 0, len(res)/2)
+
+	for i, e := range res {
+		if i%2 == 0 {
+			ids = append(ids, e)
+		}
+	}
+
+	return ids, nil
+}
+
+func (s *DatabaseStore) RegisterGroupFunction(ctx context.Context) error {
+	// @todo if my app crashes after getting the ids, users will be removed from the lobby but not put inside a room
+	f := `
+		local count = redis.call('ZCARD', KEYS[1])
+		if count < 10 then
+			return {}
+		end
+
+		return redis.call('ZPOPMIN', KEYS[1], 10)
+	`
+
+	sha, err := s.r.ScriptLoad(ctx, f).Result()
 	if err != nil {
 		log.Println(err)
 		return err
 	}
+
+	s.sha.group = sha
+
 	return nil
-}
-
-func transaction(ctx context.Context) func(tx *redis.Tx) error {
-	return func(tx *redis.Tx) error {
-		count, err := tx.ZCard(ctx, "lobby").Result()
-		if err != nil {
-			return err
-		}
-
-		if count < 10 {
-			return nil
-		}
-
-		_, err = tx.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
-			_, err = pipe.ZPopMin(ctx, "lobby", 10).Result()
-			return err
-		})
-
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}
 }

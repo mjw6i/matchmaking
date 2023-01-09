@@ -24,6 +24,8 @@ func TestGroupCreatesOnlyFullRooms(t *testing.T) {
 	r := getRedis()
 	flushRedis(t, r)
 	store := getStore(r)
+	err := store.RegisterGroupFunction(context.Background())
+	require.Nil(t, err)
 	nano := time.Now().UnixNano()
 	users := []string{"1a", "1b", "1c"}
 	for _, u := range users {
@@ -31,8 +33,10 @@ func TestGroupCreatesOnlyFullRooms(t *testing.T) {
 		require.Nil(t, err)
 	}
 
-	err := store.Group(context.Background())
+	ids, err := store.Group(context.Background())
 	require.Nil(t, err)
+	require.Empty(t, make([]string, 0))
+	require.Empty(t, ids)
 
 	requireSet(t, r, "lobby", []string{"1a", "1b", "1c"})
 }
