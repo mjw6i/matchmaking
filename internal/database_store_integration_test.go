@@ -41,6 +41,31 @@ func TestGroupCreatesOnlyFullRooms(t *testing.T) {
 	requireSet(t, r, "lobby", []string{"1a", "1b", "1c"})
 }
 
+func TestGroupOrderIsDeterminedByJoinTime(t *testing.T) {
+	r := getRedis()
+	flushRedis(t, r)
+	store := getStore(r)
+	err := store.RegisterGroupFunction(context.Background())
+	require.Nil(t, err)
+
+	micro := time.Now().UnixMicro()
+	users := []string{
+		"1a", "1b", "1c", "1d", "1e", "1f", "1g",
+		"3a", "3b", "3c",
+		"2a", "2b", "2c",
+	}
+	for _, u := range users {
+		err := store.Add(context.Background(), u, float64(micro))
+		require.Nil(t, err)
+		micro += 1
+	}
+
+	_, err = store.Group(context.Background())
+	require.Nil(t, err)
+
+	requireSet(t, r, "lobby", []string{"2a", "2b", "2c"})
+}
+
 func requireSet(t *testing.T, r *redis.Client, name string, expected []string) {
 	actual, err := r.ZRange(context.Background(), name, 0, -1).Result()
 	require.Nil(t, err)
