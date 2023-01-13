@@ -29,7 +29,6 @@ func (s *DatabaseStore) Add(ctx context.Context, id string, score float64) error
 }
 
 // @todo output doesnt determine if theres too few users or room id is already used
-// @todo should the lua function have transaction inside?
 // move 10 users to a new room with given id
 func (s *DatabaseStore) Group(ctx context.Context, id string) (bool, error) {
 	created, err := s.r.EvalSha(ctx, s.sha.group, []string{"lobby", "rooms", id}).Bool()
