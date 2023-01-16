@@ -9,3 +9,6 @@ redis-cli:
 
 test:
 	go test ./... -count=1
+
+bench:
+	go test ./... -run=NONE -bench=. -count=6 | tee bench-$(shell date +%s)
