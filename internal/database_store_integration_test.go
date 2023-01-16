@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -100,19 +101,72 @@ func TestGroupOrderIsDeterminedByJoinTime(t *testing.T) {
 	requireSet(t, r, "lobby", []string{"2a", "2b", "2c"})
 }
 
-func requireSet(t *testing.T, r *redis.Client, name string, expected []string) {
+func BenchmarkAdd10k(b *testing.B) {
+	b.StopTimer()
+	r := getRedis()
+	store := getStore(r)
+	micro := time.Now().UnixMicro()
+
+	rand.Seed(1)
+	counter := make(map[string]struct{})
+	for i := 0; i < 10000; i++ {
+		s := randString(10)
+		counter[s] = struct{}{}
+	}
+	require.Equal(b, 10000, len(counter))
+
+	rand.Seed(1)
+	rooms := make([]string, 1000)
+	for i := 0; i < 1000; i++ {
+		rooms[i] = randString(10)
+	}
+
+	rand.Seed(1)
+	for n := 0; n < b.N; n++ {
+		b.StopTimer()
+		flushRedis(b, r)
+		err := store.RegisterGroupFunction(context.Background())
+		require.Nil(b, err)
+
+		b.StartTimer()
+		for i := 0; i < 10000; i++ {
+			err := store.Add(context.Background(), randString(10), float64(micro))
+			require.Nil(b, err)
+			micro++
+		}
+
+		for i := 0; i < 1000; i++ {
+			_, err = store.Group(context.Background(), rooms[i])
+			require.Nil(b, err)
+		}
+		b.StopTimer()
+		requireSet(b, r, "lobby", []string{})
+	}
+}
+
+func randString(length int) string {
+	charset := "abcdefghijklmnopqrstuvwxyz"
+	b := make([]byte, length)
+	for j := 0; j < length; j++ {
+		b[j] = charset[rand.Intn(len(charset))]
+	}
+
+	return string(b)
+}
+
+func requireSet(tb testing.TB, r *redis.Client, name string, expected []string) {
 	actual, err := r.ZRange(context.Background(), name, 0, -1).Result()
-	require.Nil(t, err)
-	require.Equal(t, expected, actual)
+	require.Nil(tb, err)
+	require.Equal(tb, expected, actual)
 }
 
 func getStore(r *redis.Client) *DatabaseStore {
 	return &DatabaseStore{r: r}
 }
 
-func flushRedis(t *testing.T, r *redis.Client) {
+func flushRedis(tb testing.TB, r *redis.Client) {
 	err := r.FlushAll(context.Background()).Err()
-	require.Nil(t, err)
+	require.Nil(tb, err)
 }
 
 func getRedis() *redis.Client {
