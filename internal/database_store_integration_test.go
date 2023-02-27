@@ -107,21 +107,21 @@ func BenchmarkAdd10k(b *testing.B) {
 	store := getStore(r)
 	micro := time.Now().UnixMicro()
 
-	rand.Seed(1)
+	rng := rand.New(rand.NewSource(1))
 	counter := make(map[string]struct{})
 	for i := 0; i < 10000; i++ {
-		s := randString(10)
+		s := randString(rng, 10)
 		counter[s] = struct{}{}
 	}
 	require.Equal(b, 10000, len(counter))
 
-	rand.Seed(1)
+	rng = rand.New(rand.NewSource(1))
 	rooms := make([]string, 1000)
 	for i := 0; i < 1000; i++ {
-		rooms[i] = randString(10)
+		rooms[i] = randString(rng, 10)
 	}
 
-	rand.Seed(1)
+	rng = rand.New(rand.NewSource(1))
 	for n := 0; n < b.N; n++ {
 		b.StopTimer()
 		flushRedis(b, r)
@@ -130,7 +130,7 @@ func BenchmarkAdd10k(b *testing.B) {
 
 		b.StartTimer()
 		for i := 0; i < 10000; i++ {
-			err := store.Add(context.Background(), randString(10), float64(micro))
+			err := store.Add(context.Background(), randString(rng, 10), float64(micro))
 			require.Nil(b, err)
 			micro++
 		}
@@ -144,11 +144,11 @@ func BenchmarkAdd10k(b *testing.B) {
 	}
 }
 
-func randString(length int) string {
+func randString(rng *rand.Rand, length int) string {
 	charset := "abcdefghijklmnopqrstuvwxyz"
 	b := make([]byte, length)
 	for j := 0; j < length; j++ {
-		b[j] = charset[rand.Intn(len(charset))]
+		b[j] = charset[rng.Intn(len(charset))]
 	}
 
 	return string(b)
